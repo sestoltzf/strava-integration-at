@@ -8,6 +8,13 @@ const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
 exports.handler = async (event) => {
+  console.log('Starting handler...');
+  console.log('Loaded Environment Variables:');
+  console.log('STRAVA_CLIENT_ID:', STRAVA_CLIENT_ID ? 'Present' : 'Missing');
+  console.log('STRAVA_CLIENT_SECRET:', STRAVA_CLIENT_SECRET ? 'Present' : 'Missing');
+  console.log('AIRTABLE_API_KEY:', AIRTABLE_API_KEY ? 'Present' : 'Missing');
+  console.log('AIRTABLE_BASE_ID:', AIRTABLE_BASE_ID ? 'Present' : 'Missing');
+
   if (event.queryStringParameters?.code) {
     try {
       console.log('Starting Strava token exchange...');
@@ -59,6 +66,7 @@ exports.handler = async (event) => {
       
       for (const activity of activities) {
         try {
+          console.log('Saving activity to Airtable:', activity.name);
           await base('Activities').create([
             {
               fields: {
@@ -104,6 +112,7 @@ exports.handler = async (event) => {
     }
   }
 
+  console.log('Redirecting to Strava authorization...');
   const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
   
   return {
