@@ -3,7 +3,7 @@ const Airtable = require('airtable');
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
-const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
+const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY; // Din nya Personal Access Token
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
@@ -54,7 +54,7 @@ exports.handler = async (event) => {
         throw new Error('Failed to get activities: ' + JSON.stringify(activities));
       }
       
-      console.log('Saving to Airtable...');
+      console.log('Saving activities to Airtable...');
       const base = new Airtable({ personalAccessToken: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
       
       for (const activity of activities) {
