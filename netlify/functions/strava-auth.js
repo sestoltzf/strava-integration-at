@@ -55,7 +55,7 @@ exports.handler = async (event) => {
       }
       
       console.log('Saving to Airtable...');
-      const base = new Airtable({apiKey: AIRTABLE_API_KEY}).base(AIRTABLE_BASE_ID);
+      const base = new Airtable({ personalAccessToken: AIRTABLE_API_KEY }).base(AIRTABLE_BASE_ID);
       
       for (const activity of activities) {
         try {
