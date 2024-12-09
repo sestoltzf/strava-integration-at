@@ -70,17 +70,7 @@ exports.handler = async (event) => {
           await base('Activities').create([
             {
               fields: {
-                'Aktivitets ID': activity.id.toString(),
-                'Namn': activity.name,
-                'Typ': activity.type,
-                'Datum': activity.start_date,
-                'Distans': activity.distance,
-                'Tid': activity.moving_time,
-                'Höjdmeter': activity.total_elevation_gain,
-                'Snittfart': activity.average_speed,
-                'Maxfart': activity.max_speed,
-                'Snittpuls': activity.average_heartrate,
-                'Maxpuls': activity.max_heartrate
+                'Aktivitets ID': activity.id.toString(), 
               }
             }
           ]);
