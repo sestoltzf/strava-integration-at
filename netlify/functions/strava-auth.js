@@ -20,7 +20,7 @@ exports.handler = async (event) => {
          client_id: STRAVA_CLIENT_ID,
          client_secret: STRAVA_CLIENT_SECRET,
          code: event.queryStringParameters.code,
-         grant_type: 'eae06e243b625a661509b325b4a2202d46e9f205'
+         grant_type: 'authorization_code'
        })
      });
 
