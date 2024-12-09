@@ -7,7 +7,7 @@ const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
-const handler = async (event) => {
+exports.handler = async (event) => {
   if (event.queryStringParameters?.code) {
     try {
       const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
@@ -76,5 +76,3 @@ const handler = async (event) => {
     }
   };
 };
-
-module.exports = { handler };
