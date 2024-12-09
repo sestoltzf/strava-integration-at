@@ -66,6 +66,19 @@ exports.handler = async (event) => {
       
       for (const activity of activities) {
         try {
+          // Kontrollera om posten redan finns
+          const existingRecords = await base('Activities')
+            .select({
+              filterByFormula: `{Aktivitets ID} = "${activity.id.toString()}"`
+            })
+            .firstPage();
+
+          if (existingRecords.length > 0) {
+            console.log(`Activity "${activity.name}" already exists, skipping.`);
+            continue; // Hoppa över om posten redan finns
+          }
+
+          // Skapa ny post om den inte redan finns
           console.log('Saving activity to Airtable:', activity.name);
           await base('Activities').create([
             {
@@ -123,3 +136,4 @@ exports.handler = async (event) => {
 };
 
 };
+
