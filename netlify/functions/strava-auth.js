@@ -1,4 +1,5 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
+import Airtable from 'airtable';
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
@@ -6,7 +7,7 @@ const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
-const handler = async (event) => {
+export const handler = async (event) => {
   // Hantera OAuth callback från Strava
   if (event.queryStringParameters.code) {
     try {
@@ -32,7 +33,6 @@ const handler = async (event) => {
       const activities = await activitiesResponse.json();
       
       // Spara till Airtable
-      const Airtable = require('airtable');
       const base = new Airtable({apiKey: AIRTABLE_API_KEY}).base(AIRTABLE_BASE_ID);
       
       for (const activity of activities) {
