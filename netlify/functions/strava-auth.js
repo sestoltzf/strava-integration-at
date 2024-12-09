@@ -118,7 +118,8 @@ exports.handler = async (event) => {
   return {
     statusCode: 302,
     headers: {
-      Location: authUrl
+        Location: 'https://strava-at-integration.netlify.app/landing.html'
     }
-  };
+};
+
 };
