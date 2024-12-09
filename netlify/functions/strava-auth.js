@@ -1,17 +1,15 @@
+const fetch = require('node-fetch');
+const Airtable = require('airtable');
+
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
-exports.handler = async (event) => {
-  const fetch = (await import('node-fetch')).default;
-  const Airtable = (await import('airtable')).default;
-
-  // Hantera OAuth callback från Strava
-  if (event.queryStringParameters.code) {
+const handler = async (event) => {
+  if (event.queryStringParameters?.code) {
     try {
-      // Byt ut authorization code mot access token
       const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -19,20 +17,18 @@ exports.handler = async (event) => {
           client_id: STRAVA_CLIENT_ID,
           client_secret: STRAVA_CLIENT_SECRET,
           code: event.queryStringParameters.code,
-          grant_type: 'authorization_code'
+          grant_type: 'eae06e243b625a661509b325b4a2202d46e9f205'
         })
       });
 
       const tokenData = await tokenResponse.json();
       
-      // Hämta aktiviteter från Strava
       const activitiesResponse = await fetch('https://www.strava.com/api/v3/athlete/activities', {
         headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
       });
       
       const activities = await activitiesResponse.json();
       
-      // Spara till Airtable
       const base = new Airtable({apiKey: AIRTABLE_API_KEY}).base(AIRTABLE_BASE_ID);
       
       for (const activity of activities) {
@@ -71,7 +67,6 @@ exports.handler = async (event) => {
     }
   }
 
-  // Om ingen kod finns, starta OAuth-flödet
   const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
   
   return {
