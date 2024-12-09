@@ -1,13 +1,13 @@
-import fetch from 'node-fetch';
-import Airtable from 'airtable';
-
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
+  const fetch = (await import('node-fetch')).default;
+  const Airtable = (await import('airtable')).default;
+
   // Hantera OAuth callback från Strava
   if (event.queryStringParameters.code) {
     try {
@@ -19,7 +19,7 @@ export const handler = async (event) => {
           client_id: STRAVA_CLIENT_ID,
           client_secret: STRAVA_CLIENT_SECRET,
           code: event.queryStringParameters.code,
-          grant_type: 'eae06e243b625a661509b325b4a2202d46e9f205'
+          grant_type: 'authorization_code'
         })
       });
 
@@ -55,7 +55,6 @@ export const handler = async (event) => {
         ]);
       }
 
-      // Redirect tillbaka till hemsidan
       return {
         statusCode: 302,
         headers: {
