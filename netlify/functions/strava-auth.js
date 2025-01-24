@@ -66,12 +66,10 @@ exports.handler = async (event) => {
      const athlete = await athleteResponse.json();
 
      // Check for existing user
-     const existingUsers = await usersTable.findRows({
-       stravaId: athlete.id
-     });
+     const existingUser = await usersTable.get({ where: { stravaId: athlete.id } });
 
-     if (existingUsers.length > 0) {
-       await usersTable.updateRow(existingUsers[0].id, {
+     if (existingUser) {
+       await usersTable.update(existingUser.id, {
          refresh: tokenData.refresh_token,
          access: tokenData.access_token,
          expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
@@ -79,7 +77,7 @@ exports.handler = async (event) => {
          lastLogin: new Date().toISOString()
        });
      } else {
-       await usersTable.addRow({
+       await usersTable.add({
          stravaId: athlete.id,
          refresh: tokenData.refresh_token,
          access: tokenData.access_token,
@@ -100,12 +98,10 @@ exports.handler = async (event) => {
      const activities = await activitiesResponse.json();
      
      for (const activity of activities) {
-       const existingActivities = await stravaTable.findRows({
-         aktivitetsId: parseInt(activity.id)
-       });
+       const existingActivity = await stravaTable.get({ where: { aktivitetsId: parseInt(activity.id) } });
 
-       if (existingActivities.length === 0) {
-         await stravaTable.addRow({
+       if (!existingActivity) {
+         await stravaTable.add({
            aktivitetsId: parseInt(activity.id),
            namn: activity.name,
            typ: activity.type,
