@@ -9,40 +9,14 @@ const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functio
 const stravaTable = glide.table({
    token: GLIDE_TOKEN,
    app: "n2K9ttt658yMmwBYpTZ0",
-   table: "native-table-77d1be7d-8c64-400d-82f4-bacb0934187e",
-   columns: {
-       aktivitetsId: { type: "number", name: "Lmyqo" },
-       namn: { type: "string", name: "1ii4R" },
-       typ: { type: "string", name: "jWa0Z" },
-       datum: { type: "string", name: "mpzK7" },
-       distans: { type: "string", name: "KBAnt" },
-       tid: { type: "string", name: "uLKKx" },
-       snittfart: { type: "string", name: "c4k85" },
-       totaltTid: { type: "string", name: "fKDsu" },
-       hJdmeter: { type: "number", name: "jzDoP" },
-       maxfart: { type: "string", name: "Wh5px" },
-       snittpuls: { type: "number", name: "p9Sin" },
-       maxpuls: { type: "number", name: "EjfhF" }
-   }
-});
+   table: "native-table-77d1be7d-8c64-400d-82f4-bacb0934187e"
+}).useKey('Lmyqo');
 
 const usersTable = glide.table({
    token: GLIDE_TOKEN,
    app: "n2K9ttt658yMmwBYpTZ0",
-   table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17",
-   columns: {
-       stravaUserId: { type: "number", name: "stravaId" },
-       refreshToken: { type: "string", name: "refresh" },
-       accessToken: { type: "string", name: "access" },
-       tokenExpiresAt: { type: "date", name: "expiry" },
-       lastSyncTime: { type: "date", name: "lastSync" },
-       athleteName: { type: "string", name: "name" },
-       athleteEmail: { type: "string", name: "email" },
-       isActive: { type: "boolean", name: "active" },
-       createDate: { type: "date", name: "created" },
-       lastLoginDate: { type: "date", name: "lastLogin" }
-   }
-});
+   table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17"
+}).useKey('stravaId');
 
 exports.handler = async (event) => {
  if (event.queryStringParameters?.code) {
@@ -65,14 +39,11 @@ exports.handler = async (event) => {
      });
      const athlete = await athleteResponse.json();
 
-     // Kolla efter existerande användare
-     const users = await usersTable.select({
-      filter: `{stravaId} = "${athlete.id}"`
-    }).firstPage();
+     // Check for existing user
+     const existingUser = await usersTable.find(athlete.id);
 
-     if (users.length > 0) {
-       // Uppdatera existerande användare
-       await usersTable.update(users[0].id, {
+     if (existingUser) {
+       await usersTable.update(existingUser.id, {
          refreshToken: tokenData.refresh_token,
          accessToken: tokenData.access_token,
          tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
@@ -80,9 +51,8 @@ exports.handler = async (event) => {
          lastLoginDate: new Date().toISOString()
        });
      } else {
-       // Lägg till ny användare
-       await usersTable.add({
-         stravaUserId: athlete.id,
+       await usersTable.create({
+         stravaId: athlete.id,
          refreshToken: tokenData.refresh_token,
          accessToken: tokenData.access_token,
          tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
@@ -102,12 +72,10 @@ exports.handler = async (event) => {
      const activities = await activitiesResponse.json();
      
      for (const activity of activities) {
-      const existingActivities = await stravaTable.select({
-        filter: `{Lmyqo} = "${activity.id}"`
-      }).firstPage();
+       const existingActivity = await stravaTable.find(activity.id);
 
-       if (existingActivities.length === 0) {
-         await stravaTable.add({
+       if (!existingActivity) {
+         await stravaTable.create({
            aktivitetsId: parseInt(activity.id),
            namn: activity.name,
            typ: activity.type,
