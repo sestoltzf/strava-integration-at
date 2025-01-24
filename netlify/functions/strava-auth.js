@@ -26,7 +26,7 @@ const stravaTable = glide.table({
     }
 });
 
-const usersTable = glide.bigTable({
+const usersTable = glide.table({
     token: GLIDE_TOKEN,
     app: "n2K9ttt658yMmwBYpTZ0",
     table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17", // Lägg in ditt BigTable ID här
