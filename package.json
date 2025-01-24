@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@glideapps/tables": "^1.0.21",
     "airtable": "^0.12.2",
     "node-fetch": "^2.6.7"
   },
