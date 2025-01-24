@@ -26,24 +26,6 @@ const stravaTable = glide.table({
   },
 });
 
-const usersTable = glide.table({
-  token: GLIDE_TOKEN,
-  app: "n2K9ttt658yMmwBYpTZ0",
-  table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17",
-  columns: {
-    stravaId: { type: "number", name: "stravaId" },
-    refresh: { type: "string", name: "refresh" },
-    access: { type: "string", name: "access" },
-    expiry: { type: "date", name: "expiry" },
-    lastSync: { type: "date", name: "lastSync" },
-    name: { type: "string", name: "name" },
-    email: { type: "string", name: "email" },
-    active: { type: "boolean", name: "active" },
-    created: { type: "date", name: "created" },
-    lastLogin: { type: "date", name: "lastLogin" },
-  },
-});
-
 exports.handler = async (event) => {
   if (event.queryStringParameters?.code) {
     try {
@@ -61,31 +43,6 @@ exports.handler = async (event) => {
 
       const tokenData = await tokenResponse.json();
 
-      // Hämta användarinformation från Strava
-      const athleteResponse = await fetch("https://www.strava.com/api/v3/athlete", {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` },
-      });
-      const athlete = await athleteResponse.json();
-
-      // Lägg till användare om den inte redan finns
-      const existingUser = await usersTable.get({ stravaId: athlete.id });
-      if (!existingUser) {
-        await usersTable.add({
-          stravaId: athlete.id,
-          refresh: tokenData.refresh_token,
-          access: tokenData.access_token,
-          expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          lastSync: new Date().toISOString(),
-          name: `${athlete.firstname} ${athlete.lastname}`,
-          email: athlete.email,
-          active: true,
-          created: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        });
-      } else {
-        console.log(`Användaren med ID ${athlete.id} finns redan.`);
-      }
-
       // Hämta aktiviteter från Strava
       const activitiesResponse = await fetch(
         "https://www.strava.com/api/v3/athlete/activities?per_page=5",
@@ -93,12 +50,19 @@ exports.handler = async (event) => {
       );
       const activities = await activitiesResponse.json();
 
-      // Lägg till aktiviteter om de inte redan finns
+      // Hämta alla rader från Glide-tabellen
+      const allRows = await stravaTable.get();
+
+      // Filtrera och lägg bara till aktiviteter som inte redan finns
       for (const activity of activities) {
-        const existingActivity = await stravaTable.get({ aktivitetsId: activity.id });
+        const existingActivity = allRows.find(
+          (row) => row.aktivitetsId === parseInt(activity.id)
+        );
+
         if (!existingActivity) {
+          // Lägg till ny aktivitet
           await stravaTable.add({
-            aktivitetsId: activity.id,
+            aktivitetsId: parseInt(activity.id),
             namn: activity.name,
             typ: activity.type,
             datum: activity.start_date,
@@ -108,11 +72,12 @@ exports.handler = async (event) => {
             totaltTid: activity.elapsed_time.toString(),
             hJdmeter: activity.total_elevation_gain,
             maxfart: activity.max_speed.toString(),
-            snittpuls: activity.average_heartrate,
-            maxpuls: activity.max_heartrate,
+            snittpuls: activity.average_heartrate || null,
+            maxpuls: activity.max_heartrate || null,
           });
+          console.log(`Ny aktivitet tillagd: ${activity.name}`);
         } else {
-          console.log(`Aktiviteten med ID ${activity.id} finns redan.`);
+          console.log(`Aktivitet med ID ${activity.id} finns redan.`);
         }
       }
 
