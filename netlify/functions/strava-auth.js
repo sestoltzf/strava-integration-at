@@ -66,7 +66,8 @@ exports.handler = async (event) => {
      const athlete = await athleteResponse.json();
 
      // Check for existing user
-     const existingUser = await usersTable.get({ where: { stravaId: athlete.id } });
+     const users = await usersTable.list();
+     const existingUser = users.find((row) => row.stravaId === athlete.id);
 
      if (existingUser) {
        await usersTable.update(existingUser.id, {
@@ -83,7 +84,7 @@ exports.handler = async (event) => {
          access: tokenData.access_token,
          expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
          lastSync: new Date().toISOString(),
-         name: athlete.firstname + ' ' + athlete.lastname,
+         name: `${athlete.firstname} ${athlete.lastname}`,
          email: athlete.email,
          active: true,
          created: new Date().toISOString(),
@@ -98,7 +99,8 @@ exports.handler = async (event) => {
      const activities = await activitiesResponse.json();
      
      for (const activity of activities) {
-       const existingActivity = await stravaTable.get({ where: { aktivitetsId: parseInt(activity.id) } });
+       const allRows = await stravaTable.list();
+       const existingActivity = allRows.find((row) => row.aktivitetsId === parseInt(activity.id));
 
        if (!existingActivity) {
          await stravaTable.add({
