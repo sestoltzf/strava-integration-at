@@ -66,11 +66,9 @@ exports.handler = async (event) => {
      const athlete = await athleteResponse.json();
 
      // Kolla efter existerande användare
-     const users = await usersTable.query({
-       filter: {
-         stravaUserId: athlete.id
-       }
-     });
+     const users = await usersTable.select({
+      filter: `{stravaId} = "${athlete.id}"`
+    }).firstPage();
 
      if (users.length > 0) {
        // Uppdatera existerande användare
@@ -104,9 +102,9 @@ exports.handler = async (event) => {
      const activities = await activitiesResponse.json();
      
      for (const activity of activities) {
-       const existingActivities = await stravaTable.query({
-         filter: { aktivitetsId: parseInt(activity.id) }
-       });
+      const existingActivities = await stravaTable.select({
+        filter: `{Lmyqo} = "${activity.id}"`
+      }).firstPage();
 
        if (existingActivities.length === 0) {
          await stravaTable.add({
