@@ -47,7 +47,7 @@ const usersTable = glide.table({
 exports.handler = async (event) => {
   if (event.queryStringParameters?.code) {
     try {
-      // Få Strava-token
+      // Hämta token från Strava
       const tokenResponse = await fetch("https://www.strava.com/oauth/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,66 +61,49 @@ exports.handler = async (event) => {
 
       const tokenData = await tokenResponse.json();
 
-      // Hämta användardata från Strava
+      // Hämta användarinformation från Strava
       const athleteResponse = await fetch("https://www.strava.com/api/v3/athlete", {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       });
       const athlete = await athleteResponse.json();
 
-      // Försök hämta användaren i Glide med `get()` och Strava ID
-      const existingUser = await usersTable.get({ stravaId: athlete.id });
+      // Lägg till användare (skippa kontroll för existerande rader)
+      await usersTable.add({
+        stravaId: athlete.id,
+        refresh: tokenData.refresh_token,
+        access: tokenData.access_token,
+        expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        lastSync: new Date().toISOString(),
+        name: `${athlete.firstname} ${athlete.lastname}`,
+        email: athlete.email,
+        active: true,
+        created: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+      });
 
-      if (existingUser) {
-        // Uppdatera användarens data om den redan finns
-        await usersTable.update(existingUser.id, {
-          refresh: tokenData.refresh_token,
-          access: tokenData.access_token,
-          expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          lastSync: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        });
-      } else {
-        // Skapa ny användare om den inte finns
-        await usersTable.add({
-          stravaId: athlete.id,
-          refresh: tokenData.refresh_token,
-          access: tokenData.access_token,
-          expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-          lastSync: new Date().toISOString(),
-          name: `${athlete.firstname} ${athlete.lastname}`,
-          email: athlete.email,
-          active: true,
-          created: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        });
-      }
-
-      // Hämta användarens aktiviteter
+      // Hämta aktiviteter från Strava
       const activitiesResponse = await fetch(
         "https://www.strava.com/api/v3/athlete/activities?per_page=5",
         { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
       );
       const activities = await activitiesResponse.json();
 
-      // Lägg till aktiviteter i Glide om de inte redan finns
+      // Lägg till varje aktivitet utan att kontrollera om den redan finns
       for (const activity of activities) {
-        const existingActivity = await stravaTable.get({ aktivitetsId: activity.id });
-        if (!existingActivity) {
-          await stravaTable.add({
-            aktivitetsId: parseInt(activity.id),
-            namn: activity.name,
-            typ: activity.type,
-            datum: activity.start_date,
-            distans: activity.distance.toString(),
-            tid: activity.moving_time.toString(),
-            snittfart: activity.average_speed.toString(),
-            totaltTid: activity.elapsed_time.toString(),
-            hJdmeter: activity.total_elevation_gain,
-            maxfart: activity.max_speed.toString(),
-            snittpuls: activity.average_heartrate,
-            maxpuls: activity.max_heartrate,
-          });
-        }
+        await stravaTable.add({
+          aktivitetsId: parseInt(activity.id),
+          namn: activity.name,
+          typ: activity.type,
+          datum: activity.start_date,
+          distans: activity.distance.toString(),
+          tid: activity.moving_time.toString(),
+          snittfart: activity.average_speed.toString(),
+          totaltTid: activity.elapsed_time.toString(),
+          hJdmeter: activity.total_elevation_gain,
+          maxfart: activity.max_speed.toString(),
+          snittpuls: activity.average_heartrate,
+          maxpuls: activity.max_heartrate,
+        });
       }
 
       return {
