@@ -27,9 +27,15 @@ const stravaTable = glide.table({
 });
 
 exports.handler = async (event) => {
+  console.log("Funktion startad.");
+  console.log("Event:", JSON.stringify(event, null, 2));
+
   if (event.queryStringParameters?.code) {
     try {
+      console.log("Query-parameter 'code' hittad:", event.queryStringParameters.code);
+
       // Hämta token från Strava
+      console.log("Hämtar token från Strava...");
       const tokenResponse = await fetch("https://www.strava.com/oauth/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,25 +48,31 @@ exports.handler = async (event) => {
       });
 
       const tokenData = await tokenResponse.json();
+      console.log("Token-data mottagen:", tokenData);
 
       // Hämta aktiviteter från Strava
+      console.log("Hämtar aktiviteter från Strava...");
       const activitiesResponse = await fetch(
         "https://www.strava.com/api/v3/athlete/activities?per_page=5",
         { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
       );
       const activities = await activitiesResponse.json();
+      console.log("Aktiviteter mottagna:", activities);
 
       // Hämta alla rader från Glide-tabellen
+      console.log("Hämtar alla rader från Glide-tabellen...");
       const allRows = await stravaTable.get();
+      console.log("Antal rader i tabellen:", allRows.length);
 
       // Filtrera och lägg bara till aktiviteter som inte redan finns
       for (const activity of activities) {
+        console.log(`Kontrollerar aktivitet med ID ${activity.id}...`);
         const existingActivity = allRows.find(
           (row) => row.aktivitetsId === parseInt(activity.id)
         );
 
         if (!existingActivity) {
-          // Lägg till ny aktivitet
+          console.log(`Lägger till ny aktivitet: ${activity.name}`);
           await stravaTable.add({
             aktivitetsId: parseInt(activity.id),
             namn: activity.name,
@@ -75,12 +87,13 @@ exports.handler = async (event) => {
             snittpuls: activity.average_heartrate || null,
             maxpuls: activity.max_heartrate || null,
           });
-          console.log(`Ny aktivitet tillagd: ${activity.name}`);
+          console.log(`Aktivitet tillagd: ${activity.name}`);
         } else {
           console.log(`Aktivitet med ID ${activity.id} finns redan.`);
         }
       }
 
+      console.log("Alla aktiviteter har bearbetats.");
       return {
         statusCode: 302,
         headers: {
@@ -88,7 +101,7 @@ exports.handler = async (event) => {
         },
       };
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Ett fel inträffade:", error.message);
       return {
         statusCode: 500,
         body: JSON.stringify({ error: error.message }),
@@ -96,6 +109,7 @@ exports.handler = async (event) => {
     }
   }
 
+  console.log("Ingen 'code' parameter hittades.");
   const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
 
   return {
