@@ -26,9 +26,25 @@ const stravaTable = glide.table({
     }
 });
 
-exports.handler = async (event) => {
-  console.log('Starting handler...');
+const usersTable = glide.bigTable({
+    token: GLIDE_TOKEN,
+    app: "n2K9ttt658yMmwBYpTZ0",
+    table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17", // Lägg in ditt BigTable ID här
+    columns: {
+        stravaUserId: { type: "number", name: "stravaId" },
+        refreshToken: { type: "string", name: "refresh" },
+        accessToken: { type: "string", name: "access" },
+        tokenExpiresAt: { type: "date", name: "expiry" },
+        lastSyncTime: { type: "date", name: "lastSync" },
+        athleteName: { type: "string", name: "name" },
+        athleteEmail: { type: "string", name: "email" },
+        isActive: { type: "boolean", name: "active" },
+        createDate: { type: "date", name: "created" },
+        lastLoginDate: { type: "date", name: "lastLogin" }
+    }
+});
 
+exports.handler = async (event) => {
   if (event.queryStringParameters?.code) {
     try {
       const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
@@ -44,9 +60,25 @@ exports.handler = async (event) => {
 
       const tokenData = await tokenResponse.json();
       
-      if (!tokenData.access_token) {
-        throw new Error('No access token in response');
-      }
+      // Hämta användarinfo
+      const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
+        headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+      });
+      const athlete = await athleteResponse.json();
+
+      // Spara/uppdatera användarens tokens
+      await usersTable.add({
+        stravaUserId: athlete.id,
+        refreshToken: tokenData.refresh_token,
+        accessToken: tokenData.access_token,
+        tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        lastSyncTime: new Date().toISOString(),
+        athleteName: athlete.firstname + ' ' + athlete.lastname,
+        athleteEmail: athlete.email,
+        isActive: true,
+        createDate: new Date().toISOString(),
+        lastLoginDate: new Date().toISOString()
+      });
       
       const activitiesResponse = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=5', {
         headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
