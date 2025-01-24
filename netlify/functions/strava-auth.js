@@ -67,19 +67,24 @@ exports.handler = async (event) => {
       });
       const athlete = await athleteResponse.json();
 
-      // Lägg till användare (skippa kontroll för existerande rader)
-      await usersTable.add({
-        stravaId: athlete.id,
-        refresh: tokenData.refresh_token,
-        access: tokenData.access_token,
-        expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-        lastSync: new Date().toISOString(),
-        name: `${athlete.firstname} ${athlete.lastname}`,
-        email: athlete.email,
-        active: true,
-        created: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-      });
+      // Lägg till användare om den inte redan finns
+      const existingUser = await usersTable.get({ stravaId: athlete.id });
+      if (!existingUser) {
+        await usersTable.add({
+          stravaId: athlete.id,
+          refresh: tokenData.refresh_token,
+          access: tokenData.access_token,
+          expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+          lastSync: new Date().toISOString(),
+          name: `${athlete.firstname} ${athlete.lastname}`,
+          email: athlete.email,
+          active: true,
+          created: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+        });
+      } else {
+        console.log(`Användaren med ID ${athlete.id} finns redan.`);
+      }
 
       // Hämta aktiviteter från Strava
       const activitiesResponse = await fetch(
@@ -88,22 +93,27 @@ exports.handler = async (event) => {
       );
       const activities = await activitiesResponse.json();
 
-      // Lägg till varje aktivitet utan att kontrollera om den redan finns
+      // Lägg till aktiviteter om de inte redan finns
       for (const activity of activities) {
-        await stravaTable.add({
-          aktivitetsId: parseInt(activity.id),
-          namn: activity.name,
-          typ: activity.type,
-          datum: activity.start_date,
-          distans: activity.distance.toString(),
-          tid: activity.moving_time.toString(),
-          snittfart: activity.average_speed.toString(),
-          totaltTid: activity.elapsed_time.toString(),
-          hJdmeter: activity.total_elevation_gain,
-          maxfart: activity.max_speed.toString(),
-          snittpuls: activity.average_heartrate,
-          maxpuls: activity.max_heartrate,
-        });
+        const existingActivity = await stravaTable.get({ aktivitetsId: activity.id });
+        if (!existingActivity) {
+          await stravaTable.add({
+            aktivitetsId: activity.id,
+            namn: activity.name,
+            typ: activity.type,
+            datum: activity.start_date,
+            distans: activity.distance.toString(),
+            tid: activity.moving_time.toString(),
+            snittfart: activity.average_speed.toString(),
+            totaltTid: activity.elapsed_time.toString(),
+            hJdmeter: activity.total_elevation_gain,
+            maxfart: activity.max_speed.toString(),
+            snittpuls: activity.average_heartrate,
+            maxpuls: activity.max_heartrate,
+          });
+        } else {
+          console.log(`Aktiviteten med ID ${activity.id} finns redan.`);
+        }
       }
 
       return {
