@@ -9,14 +9,40 @@ const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functio
 const stravaTable = glide.table({
    token: GLIDE_TOKEN,
    app: "n2K9ttt658yMmwBYpTZ0",
-   table: "native-table-77d1be7d-8c64-400d-82f4-bacb0934187e"
-}).useKey('Lmyqo');
+   table: "native-table-77d1be7d-8c64-400d-82f4-bacb0934187e",
+   columns: {
+       aktivitetsId: { type: "number", name: "Lmyqo" },
+       namn: { type: "string", name: "1ii4R" },
+       typ: { type: "string", name: "jWa0Z" },
+       datum: { type: "string", name: "mpzK7" },
+       distans: { type: "string", name: "KBAnt" },
+       tid: { type: "string", name: "uLKKx" },
+       snittfart: { type: "string", name: "c4k85" },
+       totaltTid: { type: "string", name: "fKDsu" },
+       hJdmeter: { type: "number", name: "jzDoP" },
+       maxfart: { type: "string", name: "Wh5px" },
+       snittpuls: { type: "number", name: "p9Sin" },
+       maxpuls: { type: "number", name: "EjfhF" }
+   }
+});
 
 const usersTable = glide.table({
    token: GLIDE_TOKEN,
    app: "n2K9ttt658yMmwBYpTZ0",
-   table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17"
-}).useKey('stravaId');
+   table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17",
+   columns: {
+       stravaId: { type: "number", name: "stravaId" },
+       refresh: { type: "string", name: "refresh" },
+       access: { type: "string", name: "access" },
+       expiry: { type: "date", name: "expiry" },
+       lastSync: { type: "date", name: "lastSync" },
+       name: { type: "string", name: "name" },
+       email: { type: "string", name: "email" },
+       active: { type: "boolean", name: "active" },
+       created: { type: "date", name: "created" },
+       lastLogin: { type: "date", name: "lastLogin" }
+   }
+});
 
 exports.handler = async (event) => {
  if (event.queryStringParameters?.code) {
@@ -40,28 +66,30 @@ exports.handler = async (event) => {
      const athlete = await athleteResponse.json();
 
      // Check for existing user
-     const existingUser = await usersTable.find(athlete.id);
+     const existingUsers = await usersTable.findRows({
+       stravaId: athlete.id
+     });
 
-     if (existingUser) {
-       await usersTable.update(existingUser.id, {
-         refreshToken: tokenData.refresh_token,
-         accessToken: tokenData.access_token,
-         tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-         lastSyncTime: new Date().toISOString(),
-         lastLoginDate: new Date().toISOString()
+     if (existingUsers.length > 0) {
+       await usersTable.updateRow(existingUsers[0].id, {
+         refresh: tokenData.refresh_token,
+         access: tokenData.access_token,
+         expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+         lastSync: new Date().toISOString(),
+         lastLogin: new Date().toISOString()
        });
      } else {
-       await usersTable.create({
+       await usersTable.addRow({
          stravaId: athlete.id,
-         refreshToken: tokenData.refresh_token,
-         accessToken: tokenData.access_token,
-         tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-         lastSyncTime: new Date().toISOString(),
-         athleteName: athlete.firstname + ' ' + athlete.lastname,
-         athleteEmail: athlete.email,
-         isActive: true,
-         createDate: new Date().toISOString(),
-         lastLoginDate: new Date().toISOString()
+         refresh: tokenData.refresh_token,
+         access: tokenData.access_token,
+         expiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+         lastSync: new Date().toISOString(),
+         name: athlete.firstname + ' ' + athlete.lastname,
+         email: athlete.email,
+         active: true,
+         created: new Date().toISOString(),
+         lastLogin: new Date().toISOString()
        });
      }
      
@@ -72,10 +100,12 @@ exports.handler = async (event) => {
      const activities = await activitiesResponse.json();
      
      for (const activity of activities) {
-       const existingActivity = await stravaTable.find(activity.id);
+       const existingActivities = await stravaTable.findRows({
+         aktivitetsId: parseInt(activity.id)
+       });
 
-       if (!existingActivity) {
-         await stravaTable.create({
+       if (existingActivities.length === 0) {
+         await stravaTable.addRow({
            aktivitetsId: parseInt(activity.id),
            namn: activity.name,
            typ: activity.type,
@@ -100,6 +130,7 @@ exports.handler = async (event) => {
      };
 
    } catch (error) {
+     console.error('Error:', error);
      return {
        statusCode: 500,
        body: JSON.stringify({ error: error.message })
