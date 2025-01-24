@@ -65,9 +65,9 @@ exports.handler = async (event) => {
      });
      const athlete = await athleteResponse.json();
 
-     // Check for existing user
-     const users = await usersTable.list();
-     const existingUser = users.find((row) => row.stravaId === athlete.id);
+     // Hämta alla användare med batch eller annan metod
+     const allUsers = await usersTable.findAll();
+     const existingUser = allUsers.find((user) => user.stravaId === athlete.id);
 
      if (existingUser) {
        await usersTable.update(existingUser.id, {
@@ -99,8 +99,8 @@ exports.handler = async (event) => {
      const activities = await activitiesResponse.json();
      
      for (const activity of activities) {
-       const allRows = await stravaTable.list();
-       const existingActivity = allRows.find((row) => row.aktivitetsId === parseInt(activity.id));
+       const allActivities = await stravaTable.findAll();
+       const existingActivity = allActivities.find((row) => row.aktivitetsId === parseInt(activity.id));
 
        if (!existingActivity) {
          await stravaTable.add({
