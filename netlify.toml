@@ -1,3 +1,7 @@
 [functions]
+  # Alla funktioner
+  directory = "functions"
+
+  # Schemaläggning för funktionen "sync"
   [functions.sync]
-    schedule = "* * * * *"
+    schedule = "* * * * *" # Körs varje minut
