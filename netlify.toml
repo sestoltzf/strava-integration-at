@@ -1,7 +1,5 @@
 [functions]
-  # Alla funktioner
   directory = "functions"
 
-  # Schemaläggning för funktionen "sync"
-  [functions.sync]
-    schedule = "* * * * *" # Körs varje minut
+[functions."strava-auth"]
+  schedule = "* * * * *"  # Om funktionen också ska schemaläggas
