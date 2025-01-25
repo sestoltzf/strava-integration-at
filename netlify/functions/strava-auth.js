@@ -1,127 +1,127 @@
-const fetch = require("node-fetch");
+const fetch = require('node-fetch');
+const glide = require('@glideapps/tables');
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
-const REDIRECT_URI = "https://strava-at-integration.netlify.app/.netlify/functions/strava-auth";
-const APP_ID = "n2K9ttt658yMmwBYpTZ0";
+const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
-const GLIDE_API_BASE = "https://api.glideapp.io/api/function";
+const stravaTable = glide.table({
+    token: GLIDE_TOKEN,
+    app: "n2K9ttt658yMmwBYpTZ0",
+    table: "native-table-77d1be7d-8c64-400d-82f4-bacb0934187e",
+    columns: {
+        aktivitetsId: { type: "number", name: "Lmyqo" },
+        namn: { type: "string", name: "1ii4R" },
+        typ: { type: "string", name: "jWa0Z" },
+        datum: { type: "string", name: "mpzK7" },
+        distans: { type: "string", name: "KBAnt" },
+        tid: { type: "string", name: "uLKKx" },
+        snittfart: { type: "string", name: "c4k85" },
+        totaltTid: { type: "string", name: "fKDsu" },
+        hJdmeter: { type: "number", name: "jzDoP" },
+        maxfart: { type: "string", name: "Wh5px" },
+        snittpuls: { type: "number", name: "p9Sin" },
+        maxpuls: { type: "number", name: "EjfhF" }
+    }
+});
 
-// Funktion för att skicka förfrågningar till Glide API
-async function fetchFromGlide(endpoint, payload) {
-  console.log(`Sending request to Glide: ${endpoint}`, payload);
-  const response = await fetch(`${GLIDE_API_BASE}/${endpoint}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${GLIDE_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    console.error(`Glide API Error: ${error.message}`);
-    throw new Error(`Glide API Error: ${error.message}`);
-  }
-
-  const data = await response.json();
-  console.log(`Response from Glide: ${endpoint}`, data);
-  return data;
-}
-
-// Lägg till eller uppdatera användare i Glide-tabellen
-async function upsertStravaUser(userData) {
-  console.log("Upserting Strava user:", userData);
-  const mutation = {
-    appID: APP_ID,
-    mutations: [
-      {
-        kind: "add-row-to-table",
-        tableName: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17",
-        columnValues: {
-          stravaId: userData.stravaId,
-          refresh: userData.refresh,
-          access: userData.access,
-          expiry: userData.expiry,
-          lastSync: userData.lastSync || new Date().toISOString(),
-          name: userData.name,
-          email: userData.email || "",
-          active: userData.active || true,
-          created: userData.created || new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        },
-      },
-    ],
-  };
-
-  return fetchFromGlide("mutateTables", mutation);
-}
+const usersTable = glide.table({
+    token: GLIDE_TOKEN,
+    app: "n2K9ttt658yMmwBYpTZ0",
+    table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17", 
+    columns: {
+        stravaUserId: { type: "number", name: "stravaId" },
+        refreshToken: { type: "string", name: "refresh" },
+        accessToken: { type: "string", name: "access" },
+        tokenExpiresAt: { type: "date", name: "expiry" },
+        lastSyncTime: { type: "date", name: "lastSync" },
+        athleteName: { type: "string", name: "name" },
+        athleteEmail: { type: "string", name: "email" },
+        isActive: { type: "boolean", name: "active" },
+        createDate: { type: "date", name: "created" },
+        lastLoginDate: { type: "date", name: "lastLogin" }
+    }
+});
 
 exports.handler = async (event) => {
-  console.log("Function started with event:", JSON.stringify(event, null, 2));
+  if (event.queryStringParameters?.code) {
+    try {
+      const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: STRAVA_CLIENT_ID,
+          client_secret: STRAVA_CLIENT_SECRET,
+          code: event.queryStringParameters.code,
+          grant_type: 'authorization_code'
+        })
+      });
 
-  try {
-    if (event.httpMethod === "GET") {
-      if (event.queryStringParameters && event.queryStringParameters.code) {
-        console.log("Processing OAuth redirect from Strava...");
+      const tokenData = await tokenResponse.json();
+      
+      const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
+        headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+      });
+      const athlete = await athleteResponse.json();
 
-        const response = await fetch("https://www.strava.com/oauth/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            client_id: STRAVA_CLIENT_ID,
-            client_secret: STRAVA_CLIENT_SECRET,
-            code: event.queryStringParameters.code,
-            grant_type: "authorization_code",
-          }),
+      await usersTable.add({
+        stravaUserId: athlete.id,
+        refreshToken: tokenData.refresh_token,
+        accessToken: tokenData.access_token,
+        tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        lastSyncTime: new Date().toISOString(),
+        athleteName: athlete.firstname + ' ' + athlete.lastname,
+        athleteEmail: athlete.email,
+        isActive: true,
+        createDate: new Date().toISOString(),
+        lastLoginDate: new Date().toISOString()
+      });
+      
+      const activitiesResponse = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=5', {
+        headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+      });
+      
+      const activities = await activitiesResponse.json();
+      
+      for (const activity of activities) {
+        await stravaTable.add({
+          aktivitetsId: parseInt(activity.id),
+          namn: activity.name,
+          typ: activity.type,
+          datum: activity.start_date,
+          distans: activity.distance.toString(),
+          tid: activity.moving_time.toString(),
+          snittfart: activity.average_speed.toString(),
+          totaltTid: activity.elapsed_time.toString(),
+          hJdmeter: activity.total_elevation_gain,
+          maxfart: activity.max_speed.toString(),
+          snittpuls: activity.average_heartrate,
+          maxpuls: activity.max_heartrate
         });
-
-        if (!response.ok) {
-          throw new Error(`Failed to exchange code for token: ${response.statusText}`);
-        }
-
-        const tokenData = await response.json();
-        console.log("Authentication successful, token data:", tokenData);
-
-        await upsertStravaUser({
-          stravaId: tokenData.athlete.id,
-          refresh: tokenData.refresh_token,
-          access: tokenData.access_token,
-          expiry: new Date(tokenData.expires_at * 1000).toISOString(),
-          name: `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`,
-        });
-
-        return {
-          statusCode: 200,
-          body: "Authentication successful! You can close this window.",
-        };
       }
 
-      console.log("Redirecting to Strava OAuth page...");
-      const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
       return {
         statusCode: 302,
-        headers: { Location: authUrl },
+        headers: {
+          Location: 'https://strava-at-integration.netlify.app/landing.html'
+        }
       };
-    }
 
-    if (event.httpMethod === "POST") {
-      console.log("Processing POST request...");
-      // Lägg till logik här för att hantera POST-förfrågningar om det behövs.
+    } catch (error) {
       return {
-        statusCode: 200,
-        body: "POST request processed successfully.",
+        statusCode: 500,
+        body: JSON.stringify({ error: error.message })
       };
     }
-
-    return { statusCode: 405, body: "Method not allowed. Please use GET or POST." };
-  } catch (error) {
-    console.error("Error in function handler:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
-    };
   }
+
+  const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
+  
+  return {
+    statusCode: 302,
+    headers: {
+      Location: authUrl
+    }
+  };
 };
