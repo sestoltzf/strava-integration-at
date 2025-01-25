@@ -35,8 +35,32 @@ exports.handler = async (event) => {
   console.log("Funktion startad.");
   console.log("Event:", JSON.stringify(event, null, 2));
 
+  // Hantera schemalagd synkronisering
   if (event.headers["x-netlify-event"] === "schedule") {
     console.log("Schemalagd synkronisering triggas.");
+    try {
+      console.log("Hämtar alla rader från Glide-tabellen...");
+      const allRows = await stravaTable.get();
+      console.log("Antal rader i tabellen:", allRows.length);
+
+      console.log("Synkronisering klar.");
+      return {
+        statusCode: 200,
+        body: "Schemalagd synkronisering klar.",
+      };
+    } catch (error) {
+      console.error("Fel under schemalagd synkronisering:", error.message);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Fel under schemalagd synkronisering." }),
+      };
+    }
+  }
+
+  // Hantera autentiseringsflödet
+  if (event.queryStringParameters?.code) {
+    console.log("Query-parameter 'code' hittad:", event.queryStringParameters.code);
+
     try {
       console.log("Hämtar token från Strava...");
       const tokenResponse = await fetch("https://www.strava.com/oauth/token", {
@@ -45,28 +69,37 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           client_id: STRAVA_CLIENT_ID,
           client_secret: STRAVA_CLIENT_SECRET,
-          refresh_token: process.env.STRAVA_REFRESH_TOKEN,
-          grant_type: "refresh_token",
+          code: event.queryStringParameters.code,
+          grant_type: "authorization_code",
         }),
       });
 
       const tokenData = await tokenResponse.json();
       console.log("Token-data mottagen:", tokenData);
 
+      console.log("Hämtar användarinformation från Strava...");
+      const athleteResponse = await fetch("https://www.strava.com/api/v3/athlete", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+
+      const athlete = await athleteResponse.json();
+      console.log("Användarinformation mottagen:", athlete);
+
+      const { firstname, lastname, id: userID, profile: image } = athlete;
+
+      console.log(`Användare: ${firstname} ${lastname}, ID: ${userID}, Bild-URL: ${image}`);
+
       console.log("Hämtar aktiviteter från Strava...");
       const activitiesResponse = await fetch(
         "https://www.strava.com/api/v3/athlete/activities?per_page=5",
         { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
       );
-
       const activities = await activitiesResponse.json();
       console.log("Aktiviteter mottagna:", activities);
 
       console.log("Hämtar alla rader från Glide-tabellen...");
       const allRows = await stravaTable.get();
       console.log("Antal rader i tabellen:", allRows.length);
-
-      let addedActivities = 0;
 
       for (const activity of activities) {
         console.log(`Kontrollerar aktivitet med ID ${activity.id}...`);
@@ -89,36 +122,41 @@ exports.handler = async (event) => {
             maxfart: activity.max_speed.toString(),
             snittpuls: activity.average_heartrate || null,
             maxpuls: activity.max_heartrate || null,
-            firstname: "Firstname Placeholder", // Placeholder för att visa att data används
-            lastname: "Lastname Placeholder",
-            userID: 12345, // Placeholder-ID
-            elevation: activity.total_elevation_gain || 0, // Höjdstigning
-            image: "https://via.placeholder.com/100", // Placeholder bild
+            firstname: firstname, // Förnamn
+            lastname: lastname, // Efternamn
+            userID: userID, // Användar-ID
+            elevation: activity.total_elevation_gain || 0, // Total höjdstigning
+            image: image, // Bild-URL
           });
-          addedActivities++;
           console.log(`Aktivitet tillagd: ${activity.name}`);
         } else {
           console.log(`Aktivitet med ID ${activity.id} finns redan.`);
         }
       }
 
-      console.log(`${addedActivities} nya aktiviteter har lagts till.`);
+      console.log("Alla aktiviteter har bearbetats.");
       return {
-        statusCode: 200,
-        body: "Synkronisering klar.",
+        statusCode: 302,
+        headers: {
+          Location: "https://strava-at-integration.netlify.app/landing.html",
+        },
       };
     } catch (error) {
-      console.error("Fel under schemalagd synkronisering:", error.message);
+      console.error("Fel under autentisering:", error.message);
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "Fel under schemalagd synkronisering." }),
+        body: JSON.stringify({ error: error.message }),
       };
     }
   }
 
-  console.log("Inget att synkronisera.");
+  console.log("Ingen 'code' parameter hittades.");
+  const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
+
   return {
-    statusCode: 200,
-    body: "Inget att synkronisera.",
+    statusCode: 302,
+    headers: {
+      Location: authUrl,
+    },
   };
 };
