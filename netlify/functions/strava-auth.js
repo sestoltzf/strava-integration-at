@@ -135,17 +135,23 @@ exports.handler = async event => {
           continue;
         }
 
-        // Ensure the user row exists before updating
         const userRow = users.find(u => u.stravaId === user.stravaId);
         if (!userRow) {
-          console.warn(`User with stravaId ${user.stravaId} not found, skipping update.`);
+          console.warn(`User with stravaId ${user.stravaId} not found, adding new row.`);
+          await stravaUsers.add({
+            stravaId: user.stravaId,
+            name: user.name,
+            access: tokenData.access_token,
+            expiry: new Date(tokenData.expires_at * 1000).toISOString(),
+            lastSync: new Date().toISOString(),
+            created: new Date().toISOString(),
+            active: true
+          });
           continue;
         }
 
         await stravaUsers.update(
-          {
-            stravaId: user.stravaId
-          },
+          userRow.id,
           {
             access: tokenData.access_token,
             expiry: new Date(tokenData.expires_at * 1000).toISOString(),
