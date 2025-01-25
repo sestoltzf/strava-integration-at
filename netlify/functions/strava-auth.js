@@ -10,14 +10,14 @@ const stravaTable = glide.table({
     token: GLIDE_TOKEN,
     app: "n2K9ttt658yMmwBYpTZ0",
     table: "native-table-77d1be7d-8c64-400d-82f4-bacb0934187e",
-    columns: { ... }
+    columns: { /* Dina kolumner */ }
 });
 
 const usersTable = glide.table({
     token: GLIDE_TOKEN,
     app: "n2K9ttt658yMmwBYpTZ0",
     table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17",
-    columns: { ... }
+    columns: { /* Dina kolumner */ }
 });
 
 exports.handler = async (event) => {
@@ -27,6 +27,7 @@ exports.handler = async (event) => {
         try {
             console.log('Step 2: Received code:', event.queryStringParameters.code);
 
+            // Hämta token från Strava
             const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -45,6 +46,7 @@ exports.handler = async (event) => {
             const tokenData = await tokenResponse.json();
             console.log('Step 4: Token data:', tokenData);
 
+            // Hämta atletinformation
             const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
                 headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
             });
@@ -56,6 +58,8 @@ exports.handler = async (event) => {
             const athlete = await athleteResponse.json();
             console.log('Step 6: Athlete data:', athlete);
 
+            // Lägg till användaren i Glide-tabellen
+            console.log('Step 7: Adding user to Glide users table...');
             await usersTable.add({
                 stravaUserId: athlete.id,
                 refreshToken: tokenData.refresh_token,
@@ -70,6 +74,8 @@ exports.handler = async (event) => {
             });
             console.log('Step 8: User added successfully.');
 
+            // Hämta aktiviteter
+            console.log('Step 9: Fetching athlete activities...');
             const activitiesResponse = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=5', {
                 headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
             });
