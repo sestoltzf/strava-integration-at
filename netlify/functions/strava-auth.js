@@ -7,21 +7,21 @@ const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
 const REDIRECT_URI = "https://strava-at-integration.netlify.app/.netlify/functions/strava-auth";
 
 const stravaUsers = glide.table({
- token: GLIDE_TOKEN,
- app: "n2K9ttt658yMmwBYpTZ0",
- table: "986441.StravaUsers",
- columns: {
-   stravaId: { type: "number", name: "stravaId" },
-   refresh: { type: "string", name: "refresh" },
-   access: { type: "string", name: "access" },
-   expiry: { type: "date", name: "expiry" },
-   lastSync: { type: "date", name: "lastSync" },
-   name: { type: "string", name: "name" },
-   email: { type: "string", name: "email" },
-   active: { type: "boolean", name: "active" },
-   created: { type: "date", name: "created" },
-   lastLogin: { type: "date", name: "lastLogin" }
- }
+  token: GLIDE_TOKEN,
+  app: "n2K9ttt658yMmwBYpTZ0",
+  table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17",
+  columns: {
+    stravaId: { type: "number", name: "Name" },
+    refresh: { type: "string", name: "aUPNj" },
+    access: { type: "string", name: "t1JyI" },
+    expiry: { type: "date-time", name: "W0V7j" },
+    lastSync: { type: "date-time", name: "2lTug" },
+    name: { type: "string", name: "xhMIV" },
+    email: { type: "string", name: "QGza6" },
+    active: { type: "boolean", name: "gISDF" },
+    created: { type: "date-time", name: "nroWZ" },
+    lastLogin: { type: "date-time", name: "dOBxT" }
+  }
 });
 
 const stravaTable = glide.table({
