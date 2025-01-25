@@ -8,8 +8,9 @@ const APP_ID = "n2K9ttt658yMmwBYpTZ0";
 
 const GLIDE_API_BASE = "https://api.glideapp.io/api/function";
 
-// Allmän funktion för Glide API-anrop
+// Funktion för att skicka förfrågningar till Glide API
 async function fetchFromGlide(endpoint, payload) {
+  console.log(`Sending request to Glide: ${endpoint}`, payload);
   const response = await fetch(`${GLIDE_API_BASE}/${endpoint}`, {
     method: "POST",
     headers: {
@@ -21,14 +22,18 @@ async function fetchFromGlide(endpoint, payload) {
 
   if (!response.ok) {
     const error = await response.json();
+    console.error(`Glide API Error: ${error.message}`);
     throw new Error(`Glide API Error: ${error.message}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log(`Response from Glide: ${endpoint}`, data);
+  return data;
 }
 
-// Lägg till eller uppdatera en användare i Glide-tabellen
+// Lägg till eller uppdatera användare i Glide-tabellen
 async function upsertStravaUser(userData) {
+  console.log("Upserting Strava user:", userData);
   const mutation = {
     appID: APP_ID,
     mutations: [
@@ -40,7 +45,7 @@ async function upsertStravaUser(userData) {
           refresh: userData.refresh,
           access: userData.access,
           expiry: userData.expiry,
-          lastSync: userData.lastSync,
+          lastSync: userData.lastSync || new Date().toISOString(),
           name: userData.name,
           email: userData.email || "",
           active: userData.active || true,
@@ -54,8 +59,9 @@ async function upsertStravaUser(userData) {
   return fetchFromGlide("mutateTables", mutation);
 }
 
-// Lägg till en ny aktivitet i Glide-tabellen
+// Lägg till aktivitet i Glide-tabellen
 async function addStravaActivity(activityData) {
+  console.log("Adding Strava activity:", activityData);
   const mutation = {
     appID: APP_ID,
     mutations: [
@@ -90,6 +96,7 @@ async function addStravaActivity(activityData) {
 
 // Uppdatera Strava-token
 async function refreshStravaToken(refreshToken) {
+  console.log("Refreshing Strava token...");
   const response = await fetch("https://www.strava.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -102,13 +109,16 @@ async function refreshStravaToken(refreshToken) {
   });
 
   if (!response.ok) {
+    console.error("Failed to refresh Strava token:", response.statusText);
     throw new Error(`Failed to refresh token: ${response.statusText}`);
   }
 
-  return response.json();
+  const tokenData = await response.json();
+  console.log("Token refreshed successfully:", tokenData);
+  return tokenData;
 }
 
-// Bearbeta aktiviteter från Strava och lägg till i Glide
+// Processa Strava-aktiviteter
 async function processActivities(activities, userData) {
   console.log(`Processing ${activities.length} activities for user ${userData.name}`);
 
@@ -138,7 +148,7 @@ async function processActivities(activities, userData) {
 
 // Hanterare för Netlify-funktion
 exports.handler = async (event) => {
-  console.log("Function started with event:", JSON.stringify(event));
+  console.log("Function started with event:", JSON.stringify(event, null, 2));
 
   if (event.httpMethod === "GET" && !event.queryStringParameters.code) {
     const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
@@ -166,6 +176,8 @@ exports.handler = async (event) => {
       }
 
       const tokenData = await response.json();
+      console.log("Authentication successful, token data:", tokenData);
+
       await upsertStravaUser({
         stravaId: tokenData.athlete.id,
         refresh: tokenData.refresh_token,
