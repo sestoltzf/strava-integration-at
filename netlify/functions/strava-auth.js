@@ -10,7 +10,7 @@ const GLIDE_API_BASE = "https://api.glideapp.io/api/function";
 
 // Funktion för att skicka förfrågningar till Glide API
 async function fetchFromGlide(endpoint, payload) {
-  console.log(`Sending request to Glide: ${endpoint}`, payload);
+  console.log(`Sending request to Glide: ${endpoint}`, JSON.stringify(payload, null, 2));
   const response = await fetch(`${GLIDE_API_BASE}/${endpoint}`, {
     method: "POST",
     headers: {
@@ -27,13 +27,13 @@ async function fetchFromGlide(endpoint, payload) {
   }
 
   const data = await response.json();
-  console.log(`Response from Glide: ${endpoint}`, data);
+  console.log(`Response from Glide: ${endpoint}`, JSON.stringify(data, null, 2));
   return data;
 }
 
 // Lägg till eller uppdatera användare i Glide-tabellen
 async function upsertStravaUser(userData) {
-  console.log("Upserting Strava user:", userData);
+  console.log("Upserting Strava user:", JSON.stringify(userData, null, 2));
   const mutation = {
     appID: APP_ID,
     mutations: [
@@ -47,10 +47,6 @@ async function upsertStravaUser(userData) {
           expiry: userData.expiry,
           lastSync: userData.lastSync || new Date().toISOString(),
           name: userData.name,
-          email: userData.email || "",
-          active: userData.active || true,
-          created: userData.created || new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
         },
       },
     ],
@@ -61,7 +57,7 @@ async function upsertStravaUser(userData) {
 
 // Lägg till aktivitet i Glide-tabellen
 async function addStravaActivity(activityData) {
-  console.log("Adding Strava activity:", activityData);
+  console.log("Adding Strava activity:", JSON.stringify(activityData, null, 2));
   const mutation = {
     appID: APP_ID,
     mutations: [
@@ -152,8 +148,9 @@ exports.handler = async (event) => {
 
   try {
     if (event.httpMethod === "GET") {
-      if (event.queryStringParameters.code) {
-        console.log("Processing OAuth redirect from Strava...");
+      // Kontrollera om en Strava-kod returnerats
+      if (event.queryStringParameters && event.queryStringParameters.code) {
+        console.log("Received code from Strava:", event.queryStringParameters.code);
         const response = await fetch("https://www.strava.com/oauth/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -165,12 +162,16 @@ exports.handler = async (event) => {
           }),
         });
 
+        console.log("Response status from Strava token endpoint:", response.status);
+
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Failed to exchange code for token. Response:", errorText);
           throw new Error(`Failed to exchange code for token: ${response.statusText}`);
         }
 
         const tokenData = await response.json();
-        console.log("Authentication successful, token data:", tokenData);
+        console.log("Successfully exchanged token:", JSON.stringify(tokenData, null, 2));
 
         await upsertStravaUser({
           stravaId: tokenData.athlete.id,
