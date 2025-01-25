@@ -7,21 +7,21 @@ const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
 const REDIRECT_URI = "https://strava-at-integration.netlify.app/.netlify/functions/strava-auth";
 
 const stravaUsers = glide.table({
-  token: GLIDE_TOKEN,
-  app: "n2K9ttt658yMmwBYpTZ0",
-  table: "986441.StravaUsers", // Update table name to include prefix
-  columns: {
-    stravaId: { type: "number", name: "stravaId" },
-    refresh: { type: "string", name: "refresh" }, 
-    access: { type: "string", name: "access" },
-    expiry: { type: "string", name: "expiry" },
-    lastSync: { type: "string", name: "lastSync" },
-    name: { type: "string", name: "name" },
-    email: { type: "string", name: "email" }, // Changed from float to string
-    active: { type: "boolean", name: "active" },
-    created: { type: "string", name: "created" },
-    lastLogin: { type: "string", name: "lastLogin" }
-  }
+ token: GLIDE_TOKEN,
+ app: "n2K9ttt658yMmwBYpTZ0",
+ table: "986441.StravaUsers",
+ columns: {
+   stravaId: { type: "number", name: "stravaId" },
+   refresh: { type: "string", name: "refresh" },
+   access: { type: "string", name: "access" },
+   expiry: { type: "string", name: "expiry" },
+   lastSync: { type: "string", name: "lastSync" },
+   name: { type: "string", name: "name" },
+   email: { type: "string", name: "email" },
+   active: { type: "boolean", name: "active" },
+   created: { type: "string", name: "created" },
+   lastLogin: { type: "string", name: "lastLogin" }
+ }
 });
 
 const stravaTable = glide.table({
@@ -50,71 +50,106 @@ const stravaTable = glide.table({
 });
 
 async function refreshStravaToken(refresh_token) {
- console.log('Refreshing token...');
- const response = await fetch('https://www.strava.com/oauth/token', {
-   method: 'POST',
-   headers: { 'Content-Type': 'application/json' },
-   body: JSON.stringify({
-     client_id: STRAVA_CLIENT_ID,
-     client_secret: STRAVA_CLIENT_SECRET,
-     refresh_token: refresh_token,
-     grant_type: 'refresh_token'
-   })
- });
- const data = await response.json();
- console.log('Token refreshed successfully');
- return data;
+ console.log('Refreshing token with refresh token:', refresh_token);
+ try {
+   const response = await fetch('https://www.strava.com/oauth/token', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       client_id: STRAVA_CLIENT_ID,
+       client_secret: STRAVA_CLIENT_SECRET,
+       refresh_token: refresh_token,
+       grant_type: 'refresh_token'
+     })
+   });
+   const data = await response.json();
+   console.log('Token refresh response:', data);
+   return data;
+ } catch (error) {
+   console.error('Error refreshing token:', error);
+   throw error;
+ }
 }
 
 async function processActivities(activities, userData) {
- const existingActivities = await stravaTable.get({
-   filterByFormula: `{userID} = '${userData.stravaId}'`
- });
+ console.log(`Processing ${activities.length} activities for user ${userData.name}`);
+ try {
+   const existingActivities = await stravaTable.get({
+     filterByFormula: `{userID} = '${userData.stravaId}'`
+   });
+   console.log(`Found ${existingActivities.length} existing activities`);
 
- for (const activity of activities) {
-   try {
-     const existingActivity = existingActivities.find(
-       row => row.aktivitetsId === parseInt(activity.id)
-     );
+   for (const activity of activities) {
+     try {
+       const existingActivity = existingActivities.find(
+         row => row.aktivitetsId === parseInt(activity.id)
+       );
 
-     if (!existingActivity) {
-       const newActivity = {
-         aktivitetsId: parseInt(activity.id),
-         namn: activity.name,
-         typ: activity.type,
-         datum: activity.start_date,
-         distans: activity.distance.toString(),
-         tid: activity.moving_time.toString(),
-         snittfart: activity.average_speed.toString(),
-         totaltTid: activity.elapsed_time.toString(),
-         hJdmeter: activity.total_elevation_gain,
-         maxfart: activity.max_speed.toString(),
-         snittpuls: activity.average_heartrate || null,
-         maxpuls: activity.max_heartrate || null,
-         firstname: userData.name.split(' ')[0],
-         lastname: userData.name.split(' ')[1] || '',
-         userID: userData.stravaId,
-         elevation: activity.total_elevation_gain || 0,
-         image: userData.image || ''
-       };
+       if (!existingActivity) {
+         const newActivity = {
+           aktivitetsId: parseInt(activity.id),
+           namn: activity.name,
+           typ: activity.type,
+           datum: activity.start_date,
+           distans: activity.distance.toString(),
+           tid: activity.moving_time.toString(),
+           snittfart: activity.average_speed.toString(),
+           totaltTid: activity.elapsed_time.toString(),
+           hJdmeter: activity.total_elevation_gain,
+           maxfart: activity.max_speed.toString(),
+           snittpuls: activity.average_heartrate || null,
+           maxpuls: activity.max_heartrate || null,
+           firstname: userData.name.split(' ')[0],
+           lastname: userData.name.split(' ')[1] || '',
+           userID: userData.stravaId,
+           elevation: activity.total_elevation_gain || 0,
+           image: userData.image || ''
+         };
 
-       console.log(`Adding activity: ${activity.name}`);
-       await stravaTable.add(newActivity);
+         console.log(`Adding new activity:`, newActivity);
+         const result = await stravaTable.add(newActivity);
+         console.log(`Activity added:`, result);
+       }
+     } catch (error) {
+       console.error(`Error processing activity ${activity.id}:`, error);
      }
-   } catch (error) {
-     console.error(`Error processing activity ${activity.id}:`, error);
    }
+ } catch (error) {
+   console.error('Error in processActivities:', error);
+   throw error;
  }
 }
 
 exports.handler = async (event) => {
- console.log("Function started");
+ console.log("Function started", { event: JSON.stringify(event, null, 2) });
 
  if (event.headers["x-netlify-event"] === "schedule") {
+   console.log("Starting scheduled sync");
    try {
-     const users = await stravaUsers.get();
-     console.log(`Found ${users.length} users`);
+     console.log('Attempting to fetch users...');
+     let users;
+     try {
+       users = await stravaUsers.get();
+       console.log('Users data:', JSON.stringify(users, null, 2));
+     } catch (getError) {
+       console.error('Error fetching users:', getError);
+       console.error('Error details:', {
+         message: getError.message,
+         stack: getError.stack,
+         response: getError.response
+       });
+       throw getError;
+     }
 
+     if (!users || !users.length) {
+       console.log('No users found');
+       return {
+         statusCode: 200,
+         body: "No users to sync"
+       };
+     }
+
+     console.log(`Processing ${users.length} users`);
      for (const user of users) {
        if (!user.refresh) {
          console.log(`No refresh token for user ${user.stravaId}, skipping`);
@@ -129,21 +164,30 @@ exports.handler = async (event) => {
          continue;
        }
 
-       await stravaUsers.update({
-         stravaId: user.stravaId,
-         access: tokenData.access_token,
-         expiry: new Date(tokenData.expires_at * 1000).toISOString(),
-         lastSync: new Date().toISOString()
-       });
+       try {
+         await stravaUsers.update({
+           stravaId: user.stravaId,
+           access: tokenData.access_token,
+           expiry: new Date(tokenData.expires_at * 1000).toISOString(),
+           lastSync: new Date().toISOString()
+         });
+         console.log(`Updated token for user ${user.stravaId}`);
+       } catch (updateError) {
+         console.error('Error updating user:', updateError);
+         continue;
+       }
 
-       const activitiesResponse = await fetch(
-         "https://www.strava.com/api/v3/athlete/activities?per_page=5",
-         { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
-       );
-
-       const activities = await activitiesResponse.json();
-       await processActivities(activities, user);
-       console.log(`Completed sync for user: ${user.name}`);
+       try {
+         const activitiesResponse = await fetch(
+           "https://www.strava.com/api/v3/athlete/activities?per_page=5",
+           { headers: { Authorization: `Bearer ${tokenData.access_token}` } }
+         );
+         const activities = await activitiesResponse.json();
+         console.log(`Retrieved ${activities.length} activities`);
+         await processActivities(activities, user);
+       } catch (activitiesError) {
+         console.error('Error fetching activities:', activitiesError);
+       }
      }
 
      return {
@@ -154,11 +198,15 @@ exports.handler = async (event) => {
      console.error("Sync error:", error);
      return {
        statusCode: 500,
-       body: JSON.stringify({ error: error.message })
+       body: JSON.stringify({ 
+         error: error.message,
+         stack: error.stack,
+         details: error
+       })
      };
    }
  }
-
+ 
  if (event.queryStringParameters?.code) {
    try {
      const tokenResponse = await fetch("https://www.strava.com/oauth/token", {
