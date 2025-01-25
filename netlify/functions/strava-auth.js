@@ -4,7 +4,7 @@ const glide = require('@glideapps/tables');
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
-const REDIRECT_URI = 'https://strava-integration-at.netlify.app/.netlify/functions/strava-auth';
+const REDIRECT_URI = 'https://strava-at-integration.netlify.app/.netlify/functions/strava-auth';
 
 const stravaUsersTable = glide.table({
     token: GLIDE_TOKEN,
