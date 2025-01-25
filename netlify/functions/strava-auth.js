@@ -14,13 +14,13 @@ const stravaUsers = glide.table({
    stravaId: { type: "number", name: "stravaId" },
    refresh: { type: "string", name: "refresh" },
    access: { type: "string", name: "access" },
-   expiry: { type: "string", name: "expiry" },
-   lastSync: { type: "string", name: "lastSync" },
+   expiry: { type: "date", name: "expiry" },
+   lastSync: { type: "date", name: "lastSync" },
    name: { type: "string", name: "name" },
    email: { type: "string", name: "email" },
    active: { type: "boolean", name: "active" },
-   created: { type: "string", name: "created" },
-   lastLogin: { type: "string", name: "lastLogin" }
+   created: { type: "date", name: "created" },
+   lastLogin: { type: "date", name: "lastLogin" }
  }
 });
 
