@@ -7,21 +7,21 @@ const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
 const REDIRECT_URI = "https://strava-at-integration.netlify.app/.netlify/functions/strava-auth";
 
 const stravaUsers = glide.table({
- token: GLIDE_TOKEN,
- app: "n2K9ttt658yMmwBYpTZ0",
- table: "StravaUsers",
- columns: {
-   stravaId: { type: "number", name: "stravaId" },
-   refresh: { type: "string", name: "refresh" },
-   access: { type: "string", name: "access" },
-   expiry: { type: "string", name: "expiry" },
-   lastSync: { type: "string", name: "lastSync" },
-   name: { type: "string", name: "name" },
-   email: { type: "string", name: "email" },
-   active: { type: "boolean", name: "active" },
-   created: { type: "string", name: "created" },
-   lastLogin: { type: "string", name: "lastLogin" }
- }
+  token: GLIDE_TOKEN,
+  app: "n2K9ttt658yMmwBYpTZ0",
+  table: "986441.StravaUsers", // Update table name to include prefix
+  columns: {
+    stravaId: { type: "number", name: "stravaId" },
+    refresh: { type: "string", name: "refresh" }, 
+    access: { type: "string", name: "access" },
+    expiry: { type: "string", name: "expiry" },
+    lastSync: { type: "string", name: "lastSync" },
+    name: { type: "string", name: "name" },
+    email: { type: "string", name: "email" }, // Changed from float to string
+    active: { type: "boolean", name: "active" },
+    created: { type: "string", name: "created" },
+    lastLogin: { type: "string", name: "lastLogin" }
+  }
 });
 
 const stravaTable = glide.table({
