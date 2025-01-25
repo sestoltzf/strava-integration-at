@@ -1,18 +1,22 @@
 {
   "name": "strava-integration-at",
   "version": "1.0.0",
+  "description": "A Strava integration project",
   "main": "index.js",
+  "type": "module",
   "scripts": {
+    "dev": "netlify dev",
+    "build": "netlify build",
+    "deploy": "netlify deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["strava", "integration", "netlify"],
+  "author": "Your Name",
   "license": "ISC",
   "dependencies": {
     "@glideapps/tables": "^1.0.21",
     "airtable": "^0.12.2",
     "dotenv": "^16.4.7",
     "node-fetch": "^2.6.7"
-  },
-  "description": ""
+  }
 }

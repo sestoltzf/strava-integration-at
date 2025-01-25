@@ -2,4 +2,10 @@
   directory = "netlify/functions"
 
 [functions."strava-auth"]
-  schedule = "* * * * *"  # Om funktionen också ska schemaläggas
+  schedule = "0 * * * *"  # Schemalägg varje timme
+
+[context.production.environment]
+  STRAVA_CLIENT_ID = "din-client-id"
+  STRAVA_CLIENT_SECRET = "ditt-client-secret"
+  GLIDE_TOKEN = "ditt-glide-token"
+
