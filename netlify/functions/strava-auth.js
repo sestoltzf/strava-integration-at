@@ -10,38 +10,14 @@ const stravaTable = glide.table({
     token: GLIDE_TOKEN,
     app: "n2K9ttt658yMmwBYpTZ0",
     table: "native-table-77d1be7d-8c64-400d-82f4-bacb0934187e",
-    columns: {
-        aktivitetsId: { type: "number", name: "Lmyqo" },
-        namn: { type: "string", name: "1ii4R" },
-        typ: { type: "string", name: "jWa0Z" },
-        datum: { type: "string", name: "mpzK7" },
-        distans: { type: "string", name: "KBAnt" },
-        tid: { type: "string", name: "uLKKx" },
-        snittfart: { type: "string", name: "c4k85" },
-        totaltTid: { type: "string", name: "fKDsu" },
-        hJdmeter: { type: "number", name: "jzDoP" },
-        maxfart: { type: "string", name: "Wh5px" },
-        snittpuls: { type: "number", name: "p9Sin" },
-        maxpuls: { type: "number", name: "EjfhF" }
-    }
+    columns: { ... }
 });
 
 const usersTable = glide.table({
     token: GLIDE_TOKEN,
     app: "n2K9ttt658yMmwBYpTZ0",
     table: "native-table-15ae5727-336f-46d7-be40-5719a7f77f17",
-    columns: {
-        stravaUserId: { type: "number", name: "stravaId" },
-        refreshToken: { type: "string", name: "refresh" },
-        accessToken: { type: "string", name: "access" },
-        tokenExpiresAt: { type: "date", name: "expiry" },
-        lastSyncTime: { type: "date", name: "lastSync" },
-        athleteName: { type: "string", name: "name" },
-        athleteEmail: { type: "string", name: "email" },
-        isActive: { type: "boolean", name: "active" },
-        createDate: { type: "date", name: "created" },
-        lastLoginDate: { type: "date", name: "lastLogin" }
-    }
+    columns: { ... }
 });
 
 exports.handler = async (event) => {
@@ -51,7 +27,6 @@ exports.handler = async (event) => {
         try {
             console.log('Step 2: Received code:', event.queryStringParameters.code);
 
-            // Fetch token from Strava
             const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -63,23 +38,24 @@ exports.handler = async (event) => {
                 })
             });
 
-            console.log('Step 3: Token response status:', tokenResponse.status);
+            if (!tokenResponse.ok) {
+                throw new Error(`Token request failed with status: ${tokenResponse.status}`);
+            }
 
             const tokenData = await tokenResponse.json();
             console.log('Step 4: Token data:', tokenData);
 
-            // Fetch athlete information
             const athleteResponse = await fetch('https://www.strava.com/api/v3/athlete', {
                 headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
             });
 
-            console.log('Step 5: Athlete response status:', athleteResponse.status);
+            if (!athleteResponse.ok) {
+                throw new Error(`Athlete request failed with status: ${athleteResponse.status}`);
+            }
 
             const athlete = await athleteResponse.json();
             console.log('Step 6: Athlete data:', athlete);
 
-            // Add user to Glide table
-            console.log('Step 7: Adding user to Glide users table...');
             await usersTable.add({
                 stravaUserId: athlete.id,
                 refreshToken: tokenData.refresh_token,
@@ -94,18 +70,17 @@ exports.handler = async (event) => {
             });
             console.log('Step 8: User added successfully.');
 
-            // Fetch activities from Strava
-            console.log('Step 9: Fetching athlete activities...');
             const activitiesResponse = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=5', {
                 headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
             });
 
-            console.log('Step 10: Activities response status:', activitiesResponse.status);
+            if (!activitiesResponse.ok) {
+                throw new Error(`Activities request failed with status: ${activitiesResponse.status}`);
+            }
 
             const activities = await activitiesResponse.json();
             console.log('Step 11: Activities data:', activities);
 
-            // Add activities to Glide table
             for (const activity of activities) {
                 console.log(`Step 12: Adding activity to Glide table - ID: ${activity.id}`);
                 await stravaTable.add({
@@ -133,7 +108,7 @@ exports.handler = async (event) => {
             };
 
         } catch (error) {
-            console.error('Error occurred during Strava OAuth process:', error);
+            console.error('Error during OAuth process:', error.message);
             return {
                 statusCode: 500,
                 body: JSON.stringify({ error: error.message })
@@ -141,7 +116,6 @@ exports.handler = async (event) => {
         }
     }
 
-    // Redirect to Strava OAuth
     console.log('Step 14: Redirecting to Strava OAuth...');
     const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
     return {
