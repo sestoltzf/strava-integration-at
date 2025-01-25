@@ -1,0 +1,16 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "api/strava-auth.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/strava-auth",
+        "dest": "/api/strava-auth.js"
+      }
+    ]
+  }
+  

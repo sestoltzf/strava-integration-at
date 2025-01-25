@@ -5,15 +5,15 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "netlify dev",
-    "build": "netlify build",
-    "deploy": "netlify deploy",
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "deploy": "vercel deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "strava",
     "integration",
-    "netlify"
+    "vercel"
   ],
   "author": "Your Name",
   "license": "ISC",
@@ -24,3 +24,5 @@
     "node-fetch": "^3.3.2"
   }
 }
+
+
