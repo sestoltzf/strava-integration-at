@@ -23,6 +23,11 @@ const stravaTable = glide.table({
     maxfart: { type: "string", name: "Wh5px" },
     snittpuls: { type: "number", name: "p9Sin" },
     maxpuls: { type: "number", name: "EjfhF" },
+    firstname: { type: "string", name: "firstname" }, // Förnamn
+    lastname: { type: "string", name: "lastname" }, // Efternamn
+    userID: { type: "number", name: "userID" }, // Användar-ID
+    elevation: { type: "number", name: "elevation" }, // Total höjdstigning
+    image: { type: "string", name: "image" }, // Bild-URL
   },
 });
 
@@ -38,7 +43,6 @@ exports.handler = async (event) => {
       const allRows = await stravaTable.get();
       console.log("Antal rader i tabellen:", allRows.length);
 
-      // Lägg till din synkroniseringslogik här
       console.log("Synkronisering klar.");
       return {
         statusCode: 200,
@@ -73,6 +77,18 @@ exports.handler = async (event) => {
       const tokenData = await tokenResponse.json();
       console.log("Token-data mottagen:", tokenData);
 
+      console.log("Hämtar användarinformation från Strava...");
+      const athleteResponse = await fetch("https://www.strava.com/api/v3/athlete", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+
+      const athlete = await athleteResponse.json();
+      console.log("Användarinformation mottagen:", athlete);
+
+      const { firstname, lastname, id: userID, profile: image } = athlete;
+
+      console.log(`Användare: ${firstname} ${lastname}, ID: ${userID}, Bild-URL: ${image}`);
+
       console.log("Hämtar aktiviteter från Strava...");
       const activitiesResponse = await fetch(
         "https://www.strava.com/api/v3/athlete/activities?per_page=5",
@@ -106,6 +122,11 @@ exports.handler = async (event) => {
             maxfart: activity.max_speed.toString(),
             snittpuls: activity.average_heartrate || null,
             maxpuls: activity.max_heartrate || null,
+            firstname: firstname, // Förnamn
+            lastname: lastname, // Efternamn
+            userID: userID, // Användar-ID
+            elevation: activity.total_elevation_gain || 0, // Total höjdstigning
+            image: image, // Bild-URL
           });
           console.log(`Aktivitet tillagd: ${activity.name}`);
         } else {
@@ -129,7 +150,6 @@ exports.handler = async (event) => {
     }
   }
 
-  // Om inget av ovanstående matchar
   console.log("Ingen 'code' parameter hittades.");
   const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=activity:read_all`;
 
