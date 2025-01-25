@@ -70,8 +70,9 @@ async function refreshStravaToken(refresh_token) {
 async function processActivities(activities, userData) {
   console.log(`Processing ${activities.length} activities for user ${userData.name}`);
   try {
+    // Korrekt användning av `get` med filterByFormula
     const existingActivities = await stravaActivities.get({
-      filterByFormula: `{userID} = '${userData.stravaId}'`
+      filterByFormula: `userId = '${userData.stravaId}'`
     });
 
     for (const activity of activities) {
@@ -95,7 +96,7 @@ async function processActivities(activities, userData) {
           maxpuls: activity.max_heartrate || null,
           firstname: userData.name.split(" ")[0],
           lastname: userData.name.split(" ")[1] || "",
-          userID: userData.stravaId,
+          userId: userData.stravaId,
           elevation: activity.total_elevation_gain || 0,
           image: userData.image || ""
         };
@@ -135,7 +136,6 @@ exports.handler = async event => {
           continue;
         }
 
-        // Hämta $rowID
         const userRow = users.find(u => u.stravaId === user.stravaId);
         if (!userRow || !userRow.$rowID) {
           console.warn(`User with stravaId ${user.stravaId} not found or missing $rowID, skipping update.`);
