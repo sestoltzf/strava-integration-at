@@ -6,6 +6,24 @@ const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const GLIDE_TOKEN = process.env.GLIDE_TOKEN;
 const REDIRECT_URI = "https://strava-at-integration.netlify.app/.netlify/functions/strava-auth";
 
+const stravaUsers = glide.table({
+ token: GLIDE_TOKEN,
+ app: "n2K9ttt658yMmwBYpTZ0",
+ table: "StravaUsers",
+ columns: {
+   stravaId: { type: "number", name: "stravaId" },
+   refresh: { type: "string", name: "refresh" },
+   access: { type: "string", name: "access" },
+   expiry: { type: "string", name: "expiry" },
+   lastSync: { type: "string", name: "lastSync" },
+   name: { type: "string", name: "name" },
+   email: { type: "string", name: "email" },
+   active: { type: "boolean", name: "active" },
+   created: { type: "string", name: "created" },
+   lastLogin: { type: "string", name: "lastLogin" }
+ }
+});
+
 const stravaTable = glide.table({
  token: GLIDE_TOKEN,
  app: "n2K9ttt658yMmwBYpTZ0",
@@ -27,12 +45,12 @@ const stravaTable = glide.table({
    lastname: { type: "string", name: "lastname" },
    userID: { type: "number", name: "userID" },
    elevation: { type: "number", name: "elevation" },
-   image: { type: "string", name: "image" },
-   refresh_token: { type: "string", name: "refresh_token" }
- },
+   image: { type: "string", name: "image" }
+ }
 });
 
 async function refreshStravaToken(refresh_token) {
+ console.log('Refreshing token...');
  const response = await fetch('https://www.strava.com/oauth/token', {
    method: 'POST',
    headers: { 'Content-Type': 'application/json' },
@@ -43,12 +61,14 @@ async function refreshStravaToken(refresh_token) {
      grant_type: 'refresh_token'
    })
  });
- return await response.json();
+ const data = await response.json();
+ console.log('Token refreshed successfully');
+ return data;
 }
 
 async function processActivities(activities, userData) {
  const existingActivities = await stravaTable.get({
-   filterByFormula: `{userID} = '${userData.userID}'`
+   filterByFormula: `{userID} = '${userData.stravaId}'`
  });
 
  for (const activity of activities) {
@@ -71,14 +91,14 @@ async function processActivities(activities, userData) {
          maxfart: activity.max_speed.toString(),
          snittpuls: activity.average_heartrate || null,
          maxpuls: activity.max_heartrate || null,
-         firstname: userData.firstname,
-         lastname: userData.lastname,
-         userID: userData.userID,
+         firstname: userData.name.split(' ')[0],
+         lastname: userData.name.split(' ')[1] || '',
+         userID: userData.stravaId,
          elevation: activity.total_elevation_gain || 0,
-         image: userData.image
+         image: userData.image || ''
        };
 
-       console.log(`Adding activity:`, newActivity);
+       console.log(`Adding activity: ${activity.name}`);
        await stravaTable.add(newActivity);
      }
    } catch (error) {
@@ -92,21 +112,29 @@ exports.handler = async (event) => {
 
  if (event.headers["x-netlify-event"] === "schedule") {
    try {
-     const users = await stravaTable.get();
+     const users = await stravaUsers.get();
      console.log(`Found ${users.length} users`);
 
      for (const user of users) {
-       if (!user.refresh_token) {
-         console.log(`No refresh token for user ${user.userID}, skipping`);
+       if (!user.refresh) {
+         console.log(`No refresh token for user ${user.stravaId}, skipping`);
          continue;
        }
 
-       const tokenData = await refreshStravaToken(user.refresh_token);
+       console.log(`Processing user: ${user.name}`);
+       const tokenData = await refreshStravaToken(user.refresh);
        
        if (!tokenData.access_token) {
-         console.error(`Failed to refresh token for user ${user.userID}`);
+         console.error(`Failed to refresh token for user ${user.stravaId}`);
          continue;
        }
+
+       await stravaUsers.update({
+         stravaId: user.stravaId,
+         access: tokenData.access_token,
+         expiry: new Date(tokenData.expires_at * 1000).toISOString(),
+         lastSync: new Date().toISOString()
+       });
 
        const activitiesResponse = await fetch(
          "https://www.strava.com/api/v3/athlete/activities?per_page=5",
@@ -115,6 +143,7 @@ exports.handler = async (event) => {
 
        const activities = await activitiesResponse.json();
        await processActivities(activities, user);
+       console.log(`Completed sync for user: ${user.name}`);
      }
 
      return {
@@ -155,13 +184,15 @@ exports.handler = async (event) => {
 
      const athlete = await athleteResponse.json();
      
-     // Store refresh token
-     await stravaTable.add({
-       userID: athlete.id,
-       firstname: athlete.firstname,
-       lastname: athlete.lastname,
-       image: athlete.profile,
-       refresh_token: tokenData.refresh_token
+     await stravaUsers.add({
+       stravaId: athlete.id,
+       name: `${athlete.firstname} ${athlete.lastname}`,
+       refresh: tokenData.refresh_token,
+       access: tokenData.access_token,
+       expiry: new Date(tokenData.expires_at * 1000).toISOString(),
+       created: new Date().toISOString(),
+       lastSync: new Date().toISOString(),
+       active: true
      });
 
      const activitiesResponse = await fetch(
@@ -171,9 +202,8 @@ exports.handler = async (event) => {
 
      const activities = await activitiesResponse.json();
      await processActivities(activities, {
-       userID: athlete.id,
-       firstname: athlete.firstname,
-       lastname: athlete.lastname,
+       stravaId: athlete.id,
+       name: `${athlete.firstname} ${athlete.lastname}`,
        image: athlete.profile
      });
 
